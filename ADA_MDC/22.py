@@ -31,13 +31,17 @@ Sy2  = (y**2).sum()       # constant offset; same for every parameter sample
 
 # ------------------------------------------------------------------
 # 2.  Helper: ordinary‑least‑squares coefficients and σ² estimate
+#     (without using np.linalg.lstsq)
 # ------------------------------------------------------------------
 def ols_coeff(design, y):
-    beta = np.linalg.lstsq(design, y, rcond=None)[0]
+    # Solve the normal equations: (X^T X) β = X^T y
+    XT = design.T
+    ATA = XT @ design
+    ATy = XT @ y
+    beta = np.linalg.solve(ATA, ATy)
     resid = y - design @ beta
     sigma2 = (resid**2).sum() / (len(y) - design.shape[1])
     return beta, sigma2
-
 
 # ===============  Linear model  (a, b)  ===============
 X_lin                = np.vstack([np.ones_like(x), x]).T
@@ -51,9 +55,9 @@ sigma_b              = np.sqrt(cov_ab[1, 1])
 
 # uniform prior box: ±3σ around OLS values
 n_a, n_b             = 70, 70        # grid resolution
-a_vals               = np.linspace(a0_l - 3*sigma_a, a0_l + 3*sigma_a, n_a)
-b_vals               = np.linspace(b0_l - 3*sigma_b, b0_l + 3*sigma_b, n_b)
-A, B                 = np.meshgrid(a_vals, b_vals, indexing='ij')
+av               = np.linspace(a0_l - 3*sigma_a, a0_l + 3*sigma_a, n_a)
+bv               = np.linspace(b0_l - 3*sigma_b, b0_l + 3*sigma_b, n_b)
+A, B                 = np.meshgrid(av, bv, indexing='ij')
 
 # χ²(a,b) via data moments
 chi2_lin = (Sy2
@@ -63,7 +67,7 @@ chi2_lin = (Sy2
             + 2*A*B * Sx)
 
 logL_lin = -0.5 * chi2_lin / sigma2_l
-dA, dB   = a_vals[1] - a_vals[0], b_vals[1] - b_vals[0]
+dA, dB   = av[1] - av[0], bv[1] - bv[0]
 logZ_lin = logsumexp(logL_lin) + np.log(dA) + np.log(dB)
 
 
@@ -74,11 +78,11 @@ a0_q, b0_q, c0_q       = beta_quad
 
 # same ±3σ in a, b ;  c has a broad prior [-0.5, 1.5]
 n_aq, n_bq, n_c        = 50, 50, 50
-a_vals_q               = np.linspace(a0_q - 3*sigma_a, a0_q + 3*sigma_a, n_aq)
-b_vals_q               = np.linspace(b0_q - 3*sigma_b, b0_q + 3*sigma_b, n_bq)
-c_vals                 = np.linspace(-0.5, 1.5, n_c)
+avq               = np.linspace(a0_q - 3*sigma_a, a0_q + 3*sigma_a, n_aq)
+bvq               = np.linspace(b0_q - 3*sigma_b, b0_q + 3*sigma_b, n_bq)
+cv                 = np.linspace(-0.5, 1.5, n_c)
 
-Aq, Bq, Cq             = np.meshgrid(a_vals_q, b_vals_q, c_vals, indexing='ij')
+Aq, Bq, Cq             = np.meshgrid(avq, bvq, cv, indexing='ij')
 
 chi2_q = (Sy2
           - 2*Aq*Sy          - 2*Bq*Syx          - 2*Cq*Syx2
@@ -90,9 +94,9 @@ chi2_q = (Sy2
           + 2*Bq*Cq * Sx3)
 
 logL_q  = -0.5 * chi2_q / sigma2_q
-dAq, dBq, dC = (a_vals_q[1] - a_vals_q[0],
-                b_vals_q[1] - b_vals_q[0],
-                c_vals[1]   - c_vals[0])
+dAq, dBq, dC = (avq[1] - avq[0],
+                bvq[1] - bvq[0],
+                cv[1]   - cv[0])
 logZ_q  = logsumexp(logL_q) + np.log(dAq) + np.log(dBq) + np.log(dC)
 
 
