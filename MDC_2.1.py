@@ -70,7 +70,7 @@ for i in range(steps):
     an = np.random.normal(a_1, std_a1)
     bn = np.random.normal(b_1, std_b1)
     cn = np.random.normal(c_1, std_c1)
-    log_post1 = log_posterior(a_1, b_1, c_1)
+    log_post1 = log_posterior(an, bn, cn)
     
     if np.random.random() < np.exp(log_post1 - log_post):#exp turns log-likelihood ratio into a probability(check Notes)
         #random generator generates number bw 0 and 1 .
@@ -85,7 +85,7 @@ acc_rate = accepted / steps#calculating rate of acceptance
 posterior_samples = samples[burn::thin]
 
 # Posterior stats
-a_samples, b_samples, c_samples = posterior[:, 0], posterior[:, 1], posterior[:, 2]
+a_samples, b_samples, c_samples = posterior_samples[:, 0], posterior_samples[:, 1],posterior_samples[:, 2]
 mean_a, mean_b, mean_c = np.mean(a_samples), np.mean(b_samples), np.mean(c_samples)
 stdv_a = np.sqrt(np.sum((a_samples - mean_a) ** 2) / (len(a_samples) - 1))
 stdv_b = np.sqrt(np.sum((b_samples - mean_b) ** 2) / (len(b_samples) - 1))
@@ -95,17 +95,17 @@ stdv_c = np.sqrt(np.sum((c_samples - mean_c) ** 2) / (len(c_samples) - 1))
 
 #calculating log-posterior for each parameter pair in posterior_samples.
 log_probs = []
-for a, b, c in posterior:
+for a, b, c in posterior_samples:
     log_probs.append(log_posterior(a, b, c))
 log_probs = np.array(log_probs)
 
 # Finding the parameter triplet (a, b, c) with the highest log-posterior
 max_log_prob = log_probs[0]
-best_a, best_b, best_c = posterior[0]
+best_a, best_b, best_c = posterior_samples[0]
 for i in range(1, len(log_probs)):
     if log_probs[i] > max_log_prob:
         max_log_prob = log_probs[i]
-        best_a, best_b, best_c = posterior[i]
+        best_a, best_b, best_c = posterior_samples[i]
 
 # The values of best_a, best_b, best_c are now the MAP estimates
 
@@ -125,9 +125,9 @@ cc95 = ci(c_samples, 95)
 #Print results
 print("\nQuadratic Model Fit Results (y = a + bx + cx^2):")
 print("Acceptance rate:", round(acc_rate, 3))
-print("Posterior mean a = " + str(round(mean_a, 5)) + " ± " + str(round(std_a, 5)))
-print("Posterior mean b = " + str(round(mean_b, 5)) + " ± " + str(round(std_b, 5)))
-print("Posterior mean c = " + str(round(mean_c, 5)) + " ± " + str(round(std_c, 5)))
+print("Posterior mean a = " + str(round(mean_a, 5)) + " ± " + str(round(stdv_a, 5)))
+print("Posterior mean b = " + str(round(mean_b, 5)) + " ± " + str(round(stdv_b, 5)))
+print("Posterior mean c = " + str(round(mean_c, 5)) + " ± " + str(round(stdv_c, 5)))
 print("MAP: a = " + str(round(best_a, 5)) + ", b = " + str(round(best_b, 5)) + ", c = " + str(round(best_c, 5)))
 print("68% CI for a:", ca68)
 print("68% CI for b:", cb68)
@@ -175,14 +175,24 @@ def plot_contour(x_samples, y_samples, x_label, y_label):
     level_95 = hist_sorted[np.searchsorted(hist_cumulative, 0.954)]
     
     # Plot the contour manually
+    #plt.figure()
+    #plt.contourf(a_mid,b_mid, hist_trans, levels=[level_95, level_68, hist_trans.max()], alpha=0.6, colors=['orange', 'green', 'red'])
+    #plt.scatter(a_samples, b_samples,s=0.3)
+    #plt.xlabel("a")
+    #plt.ylabel("b")
+    #plt.title("Combined Posterior")
+    #plt.show()
+    # Plot the contour manually
     plt.figure()
-    plt.contourf(x_mid, y_mid, hist_trans, levels=[level_95, level_68, hist_trans.max()], 
-                 alpha=0.6, colors=['orange', 'green', 'red'])
+    levels = sorted([level_95, level_68, hist_trans.max()])
+    plt.contourf(x_mid, y_mid, hist_trans, levels=levels, 
+             alpha=0.6, colors=['orange', 'green', 'red'])
     plt.scatter(x_samples, y_samples, s=0.3, color='black')
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(f"{x_label} vs {y_label} Posterior")
     plt.show()
+
 
 plot_contour(a_samples, b_samples, "a", "b")
 plot_contour(a_samples, c_samples, "a", "c")
